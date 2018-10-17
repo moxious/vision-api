@@ -1,0 +1,20 @@
+{
+  "name": "vision",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/vision": "^0.22.1",
+    "bluebird": "^3.5.2",
+    "csv": "^4.0.0",
+    "csv-writer": "^1.2.0",
+    "lodash": "^4.17.11",
+    "moment": "^2.22.2",
+    "yargs": "^12.0.2"
+  }
+}
