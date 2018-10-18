@@ -1,4 +1,5 @@
 // export GOOGLE_APPLICATION_CREDENTIALS=/home/davidallen/servicekey.json
+// suggested arg /home/david_allen/iran/images.csv
 const vision = require('@google-cloud/vision');
 const yargs = require('yargs');
 const Promise = require('bluebird');
@@ -72,6 +73,7 @@ const text = (file, md5) => {
 
 // Performs label detection on the image file
 const labels = (file, md5) => {
+	console.log('labels',file,md5);
 	if (recs % 1000 === 0) {
 		console.log(recs, 'records');
 	}
