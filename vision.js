@@ -37,18 +37,33 @@ const csvWriter = createCsvWriter({
 });
 
 let recs = 0;
+let hits = 0;
+let misses = 0;
+
 const seen = {};
 
+const seenData = fs.readFileSync('seen.txt').toString('utf-8');
+if (!seenData) {
+   console.error('Missing seen.txt');
+   process.exit(1);
+}
+
+const seenmd5 = seenData.split(/\n/);
+seenmd5.forEach(md5 => { seen[md5] = true; });
+console.log('Loaded ',seenmd5.length, 'seen hashes');
+
 const text = (file, md5) => {
-	if (recs % 1000 === 0) {
-		console.log(recs, 'records');
+	if (recs % 100 === 0) {
+		console.log(recs, 'records',hits,'hits',misses,'misses');
 	}
 
 	recs++;
 	if (seen[md5]) {
+		hits++;
 		return true;
 	}
 
+	misses++;
 	seen[md5] = true;
 
 	return client.textDetection(file)
@@ -73,16 +88,17 @@ const text = (file, md5) => {
 
 // Performs label detection on the image file
 const labels = (file, md5) => {
-	console.log('labels',file,md5);
-	if (recs % 1000 === 0) {
-		console.log(recs, 'records');
+	if (recs % 100 === 0) {
+		console.log(`${new Date()} ${recs} records, ${hits} hits ${misses} misses`);
 	}
 
 	recs++;
 	if (seen[md5]) {
+		hits++;
 		return true;
 	}
 
+	misses++;
 	seen[md5] = true;
 
 	return client.labelDetection(file)/* .textDetection(file).faceDetection(fileName).logoDetection(fileName) */
@@ -100,7 +116,7 @@ const labels = (file, md5) => {
 		});
 };
 
-const promises = Promise.map(lines.filter(x => x), line => labels(...line.split(',')), { concurrency: 80 });
+const promises = Promise.map(lines.filter(x => x), line => labels(...line.split(',')), { concurrency: 12 });
 
 promises.then(() => console.log('Done'))
 	.catch(err => console.error('Fail', err));
