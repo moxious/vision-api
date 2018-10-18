@@ -9,8 +9,8 @@ const fs = require('fs');
 console.log(argv);
 
 if (argv._.length === 0) {
-   console.log('Usage: node vision.js filename');
-   process.exit(1);
+	console.log('Usage: node vision.js filename');
+	process.exit(1);
 }
 
 const inputFile = argv._[0];
@@ -24,60 +24,82 @@ const makeHeader = val => ({ id: val, title: val });
 
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csvWriter = createCsvWriter({
-   path: 'output.csv',
-   header: [
-	   makeHeader('description'),
-	   makeHeader('score'),
-	   makeHeader('confidence'),
-	   makeHeader('topicality'),
-	   makeHeader('mid'),
-	   makeHeader('file'),
-   ],
+	path: 'output.csv',
+	header: [
+		makeHeader('md5'),
+		makeHeader('description'),
+		makeHeader('score'),
+		makeHeader('confidence'),
+		makeHeader('topicality'),
+		makeHeader('mid'),
+	],
 });
 
-const text = file => {
-  return client.textDetection(file)
-	.then(results => {
-		const dets = results[0].textAnnotations;
-		if (dets.length === 0) { return null; }
-		const csvRecords = dets.map(text => {
-			const obj = {
-				description: text.description,
-				score: text.score,
-				confidence: text.confidence,
-				topicality: text.topicality,
-				mid: text.mid,
-				file,
-			};
+let recs = 0;
+const seen = {};
 
-			return obj;
+const text = (file, md5) => {
+	if (recs % 1000 === 0) {
+		console.log(recs, 'records');
+	}
+
+	recs++;
+	if (seen[md5]) {
+		return true;
+	}
+
+	seen[md5] = true;
+
+	return client.textDetection(file)
+		.then(results => {
+			const dets = results[0].textAnnotations;
+			if (dets.length === 0) { return null; }
+			const csvRecords = dets.map(text => {
+				const obj = {
+					md5,
+					description: text.description,
+					score: text.score,
+					confidence: text.confidence,
+					topicality: text.topicality,
+					mid: text.mid,
+				};
+
+				return obj;
+			});
+			return csvWriter.writeRecords(csvRecords);
 		});
-		return csvWriter.writeRecords(csvRecords);
-	});
 };
 
 // Performs label detection on the image file
-const labels = file => {
-   return client.labelDetection(file)/* .textDetection(file).faceDetection(fileName).logoDetection(fileName) */
-	.then(results => {
-		// console.log(JSON.stringify(results, null, 2));
-		// const dets = results[0].textAnnotations;
-		const labels = results[0].labelAnnotations;
-                const csvRecords = labels.map(label => ({
-                    description: label.description,
-		    score: label.score,
-		    confidence: label.confidence,
-		    topicality: label.topicality,
-		    mid: label.mid,
-		    file,
-		}));
-		return csvWriter.writeRecords(csvRecords);
-	});
+const labels = (file, md5) => {
+	if (recs % 1000 === 0) {
+		console.log(recs, 'records');
+	}
+
+	recs++;
+	if (seen[md5]) {
+		return true;
+	}
+
+	seen[md5] = true;
+
+	return client.labelDetection(file)/* .textDetection(file).faceDetection(fileName).logoDetection(fileName) */
+		.then(results => {
+			const labels = results[0].labelAnnotations;
+			const csvRecords = labels.map(label => ({
+				md5,
+				description: label.description,
+				score: label.score,
+				confidence: label.confidence,
+				topicality: label.topicality,
+				mid: label.mid,
+			}));
+			return csvWriter.writeRecords(csvRecords);
+		});
 };
 
-
-const promises = Promise.map(lines.filter(x => x), labels, { concurrency: 80 });
+const promises = Promise.map(lines.filter(x => x), line => labels(...line.split(',')), { concurrency: 80 });
 
 promises.then(() => console.log('Done'))
-  .catch(err => console.error('Fail',err));
+	.catch(err => console.error('Fail', err));
 
